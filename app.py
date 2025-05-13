@@ -51,5 +51,7 @@ def index():
                                    dogcat_class=f"{pred_label} ({confidence:.1f}%)")
     return render_template("index.html")
 
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Render가 자동 지정한 포트를 읽음
+    app.run(host="0.0.0.0", port=port)
