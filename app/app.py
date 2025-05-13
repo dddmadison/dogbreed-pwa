@@ -15,8 +15,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 labels = [...]  # ["beagle", "poodle", ...]
 
 # 모델 로드
-model = load_model("../models/dog_breed_model.keras")
-labels_df = pd.read_csv("../../dogbreed_dataset/labels.csv")
+model = load_model("models/dog_breed_model.keras")
+labels_df = pd.read_csv("static/labels.csv")
 labels = labels_df["breed"].unique().tolist()
 
 
