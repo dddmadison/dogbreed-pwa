@@ -16,7 +16,7 @@ labels = [...]  # ["beagle", "poodle", ...]
 
 # 모델 로드
 model = load_model("../models/dog_breed_model.keras")
-labels_df = pd.read_csv("../../dogbreed_dataset/labels.csv")
+labels_df = pd.read_csv("static/labels.csv")
 labels = labels_df["breed"].unique().tolist()
 
 
@@ -50,7 +50,6 @@ def index():
                                    user_image=filepath,
                                    dogcat_class=f"{pred_label} ({confidence:.1f}%)")
     return render_template("index.html")
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Render가 자동 지정한 포트를 읽음
