@@ -7,13 +7,14 @@ import pandas as pd
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
+# 절대 경로 기준
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 파일 경로 설정
-model_path = os.path.join(BASE_DIR, 'models/dog_breed_model_finetuning.keras')
+# 경량 모델 및 라벨 경로
+model_path = os.path.join(BASE_DIR, 'models', 'dog_breed_light.keras')
 labels_path = os.path.join(BASE_DIR, 'dogbreed_dataset', 'labels.csv')
 
-# 라벨은 상주 가능 (메모리 부담 없음)
+# 라벨 로딩 (상주해도 무방)
 labels_df = pd.read_csv(labels_path)
 DOGBREED_CLASSES = labels_df["breed"].unique()
 DOGBREED_CLASSES.sort()
@@ -35,16 +36,16 @@ def predict():
         if not file:
             return jsonify({'error': 'No file provided.'}), 400
 
-        # ✅ 경량 전략: 요청 시마다 모델 로딩 (lazy load)
+        # ✅ 요청 시점에 모델 로딩 (메모리 절약)
         model = tf.keras.models.load_model(model_path)
 
-        # ✅ 메모리 내에서 이미지 직접 처리 (저장 안 함)
+        # ✅ 이미지 파일 저장 없이 stream으로 직접 처리
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((224, 224))
         img_array = np.array(img) / 255.0
         img_array = img_array.reshape((1, 224, 224, 3))
 
-        # 예측
+        # 예측 수행
         predictions = model.predict(img_array)
         predicted_index = np.argmax(predictions, axis=1)[0]
         predicted_probability = predictions[0][predicted_index]
