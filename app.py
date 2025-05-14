@@ -11,7 +11,7 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 경량 모델 및 라벨 경로
-model_path = os.path.join(BASE_DIR, 'models', 'dog_breed_light.keras')
+model_path = os.path.join(BASE_DIR, 'dogbreedpwa', 'models', 'dog_breed_light.keras')
 labels_path = os.path.join(BASE_DIR, 'dogbreed_dataset', 'labels.csv')
 
 # 라벨 로딩 (상주해도 무방)
