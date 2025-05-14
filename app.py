@@ -12,7 +12,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 모델 및 라벨 경로
 model_path = os.path.join(BASE_DIR, 'models/dog_breed_model_finetuning.keras')
-labels_path = os.path.join(BASE_DIR, 'dogbreeddataset/labels.csv')
+labels_path = os.path.join(BASE_DIR, 'dogbreed_dataset/labels.csv')
 
 # 모델 로딩
 model = tf.keras.models.load_model(model_path)
