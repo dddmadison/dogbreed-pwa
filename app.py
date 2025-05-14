@@ -1,63 +1,71 @@
-from flask import Flask, render_template, request
-import os, gc, time
-import numpy as np
-import pandas as pd
+from flask import Flask, request, render_template, jsonify, send_from_directory
 import tensorflow as tf
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
+import numpy as np
+import os
+from PIL import Image
+import pandas as pd
 
-# ─── 기본 설정 ──────────────────────────────────────────
-app = Flask(__name__)
-UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
-# 라벨 한 번만 메모리에
-labels = pd.read_csv("static/labels.csv")["breed"].unique().tolist()
+# 경로 기준: 현재 파일(app.py)이 루트에 위치
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ─── 전처리 함수 ────────────────────────────────────────
-def preprocess_img(path):
-    img = image.load_img(path, target_size=(224, 224))
-    arr = image.img_to_array(img)
-    return np.expand_dims(arr, 0) / 255.0
+# 모델 및 라벨 경로
+model_path = os.path.join(BASE_DIR, 'models/dog_breed_model_finetuning.keras')
+labels_path = os.path.join(BASE_DIR, 'dogbreeddataset/labels.csv')
 
-# ─── 라우팅 ─────────────────────────────────────────────
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        file = request.files.get("file")
-        if not file or file.filename == "":
-            return render_template("index.html", error="No file selected.")
+# 모델 로딩
+model = tf.keras.models.load_model(model_path)
 
-        # 저장
-        save_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-        file.save(save_path)
+# 라벨 로딩
+labels_df = pd.read_csv(labels_path)
+DOGBREED_CLASSES = labels_df["breed"].unique()
+DOGBREED_CLASSES.sort()
 
-        # ✔ 요청 시점에만 모델 로드
-        start = time.time()
-        model = load_model("models/dog_breed_model.keras")
+# 메인 페이지 (PWA)
+@app.route('/')
+def home():
+    return render_template("index_pwa.html")
 
-        # 예측
-        preds = model.predict(preprocess_img(save_path))[0]
-        pred_idx = int(np.argmax(preds))
-        pred_label = labels[pred_idx]
-        confidence = preds[pred_idx] * 100
+# 정적 파일 서빙 보장 (Render 호환성용)
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
 
-        # ✔ 메모리 해제
-        tf.keras.backend.clear_session()
-        del model
-        gc.collect()
-        print("⏱ prediction elapsed:", round(time.time() - start, 2), "sec")
+# 예측 처리
+@app.route('/predict', methods=['POST'])
+def predict():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided.'}), 400
+    file = request.files['file']
+    if not file:
+        return jsonify({'error': 'No file provided.'}), 400
 
-        return render_template(
-            "result.html",
-            user_image=save_path,
-            dogcat_class=f"{pred_label} ({confidence:.1f}%)"
-        )
+    # 이미지 저장
+    filename = 'uploaded_image.jpg'
+    filepath = os.path.join(BASE_DIR, 'static', filename)
+    file.save(filepath)
 
-    return render_template("index.html")
+    # 전처리
+    img = Image.open(filepath).convert('RGB')
+    img = img.resize((224, 224))
+    img_array = np.array(img) / 255.0
+    img_array = img_array.reshape((1, 224, 224, 3))
 
-# ─── Render용 포트 바인딩 ───────────────────────────────
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    # 예측
+    predictions = model.predict(img_array)
+    predicted_index = np.argmax(predictions, axis=1)[0]
+    predicted_probability = predictions[0][predicted_index]
+
+    try:
+        predicted_breed = DOGBREED_CLASSES[predicted_index]
+    except IndexError:
+        return jsonify({'error': 'Index out of range'}), 500
+
+    return render_template('index_pwa.html',
+                           predicted_breed=predicted_breed,
+                           predicted_probability="{:.1%}".format(predicted_probability),
+                           image_path=os.path.join('static', filename))
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
