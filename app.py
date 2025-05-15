@@ -4,17 +4,25 @@ import numpy as np
 import os
 from PIL import Image
 import pandas as pd
+import zipfile
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
 # 절대 경로 기준
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 경량 모델 및 라벨 경로
-model_path = os.path.join(BASE_DIR, 'dogbreedpwa', 'models', 'dog_breed_light.keras')
-labels_path = os.path.join(BASE_DIR, 'dogbreed_dataset', 'labels.csv')
+# 모델 zip 경로 및 대상 모델 파일 경로
+model_zip_path = os.path.join(BASE_DIR, 'models', 'dog_breed_light.keras.zip')
+model_dir = os.path.join(BASE_DIR, 'models')
+model_path = os.path.join(model_dir, 'dog_breed_light.keras')
 
-# 라벨 로딩 (상주해도 무방)
+# 🔓 Render 서버에서 압축 해제 (한 번만 실행됨)
+if not os.path.exists(model_path) and os.path.exists(model_zip_path):
+    with zipfile.ZipFile(model_zip_path, 'r') as zip_ref:
+        zip_ref.extractall(model_dir)
+
+# 라벨 로딩
+labels_path = os.path.join(BASE_DIR, 'dogbreed_dataset', 'labels.csv')
 labels_df = pd.read_csv(labels_path)
 DOGBREED_CLASSES = labels_df["breed"].unique()
 DOGBREED_CLASSES.sort()
@@ -36,7 +44,7 @@ def predict():
         if not file:
             return jsonify({'error': 'No file provided.'}), 400
 
-        # ✅ 요청 시점에 모델 로딩 (메모리 절약)
+        # ✅ 요청 시점에 모델 로딩
         model = tf.keras.models.load_model(model_path)
 
         # ✅ 이미지 파일 저장 없이 stream으로 직접 처리
